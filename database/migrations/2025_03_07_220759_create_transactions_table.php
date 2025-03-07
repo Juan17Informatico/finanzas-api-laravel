@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('category_id');
+            $table->decimal('amount', 10, 2);
+            $table->string('description')->nullable();
+            $table->date('date');
             $table->timestamps();
+    
+            // Definir claves foráneas manualmente
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
         });
     }
 
