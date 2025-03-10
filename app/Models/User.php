@@ -46,4 +46,16 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    // Relación: Un usuario tiene muchas transacciones
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    // Relación: Un usuario puede tener múltiples presupuestos
+    public function budgets()
+    {
+        return $this->hasMany(Budget::class);
+    }
 }
