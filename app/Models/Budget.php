@@ -12,9 +12,7 @@ class Budget extends Model
     protected $fillable = [
         'user_id',
         'category_id',
-        'amount',
-        'start_date',
-        'end_date',
+        'limit_amount',
     ];
 
     // Relación: Un presupuesto pertenece a un usuario
