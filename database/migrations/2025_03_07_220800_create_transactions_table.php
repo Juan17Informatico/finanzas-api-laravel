@@ -28,8 +28,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('transactions');
-        Schema::table('transactions', function (Blueprint $table) {
-            $table->dropForeign(['user_id']); // Elimina la clave foránea
-        });
+        // Schema::table('transactions', function (Blueprint $table) {
+        //     $table->dropForeign(['user_id']); // Elimina la clave foránea
+        // });
     }
 };
