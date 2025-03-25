@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class CategoryController extends Controller
 {
@@ -12,7 +14,7 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        //
+        return response()->json(Category::all());
     }
 
     /**
@@ -20,7 +22,14 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'name' => 'required|string|unique:categories,name',
+            'type' => 'required|in:income,expense',
+        ]);
+
+        $category = Category::create($request->all());
+
+        return response()->json($category, Response::HTTP_CREATED);
     }
 
     /**
@@ -28,7 +37,7 @@ class CategoryController extends Controller
      */
     public function show(string $id)
     {
-        //
+        return response()->json(Category::findOrFail($id));
     }
 
     /**
@@ -36,7 +45,16 @@ class CategoryController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $category = Category::findOrFail($id);
+
+        $request->validate([
+            'name' => 'string|unique:categories,name,' . $id,
+            'type' => 'in:income,expense',
+        ]);
+
+        $category->update($request->only('name', 'type'));
+
+        return response()->json($category);
     }
 
     /**
@@ -44,6 +62,9 @@ class CategoryController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $category = Category::findOrFail($id);
+        $category->delete();
+
+        return response()->json();
     }
 }
