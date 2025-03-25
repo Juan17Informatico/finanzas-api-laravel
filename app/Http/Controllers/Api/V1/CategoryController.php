@@ -7,10 +7,20 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * CategoryController
+ *
+ * This controller handles API requests related to categories.
+ * It provides methods for creating, reading, updating, and deleting category records.
+ */
 class CategoryController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * index
+     *
+     * Retrieves and returns a list of all categories.
+     *
+     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the list of categories.
      */
     public function index()
     {
@@ -18,7 +28,12 @@ class CategoryController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * store
+     *
+     * Validates and stores a new category in the database.
+     *
+     * @param  \Illuminate\Http\Request  $request The request containing the category data.
+     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the created category.
      */
     public function store(Request $request)
     {
@@ -33,7 +48,12 @@ class CategoryController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * show
+     *
+     * Retrieves and returns the details of a specific category.
+     *
+     * @param  string  $id The ID of the category to be shown.
+     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the category details.
      */
     public function show(string $id)
     {
@@ -41,7 +61,13 @@ class CategoryController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * update
+     *
+     * Validates and updates an existing category in the database.
+     *
+     * @param  \Illuminate\Http\Request  $request The request containing the updated category data.
+     * @param  string  $id The ID of the category to be updated.
+     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the updated category.
      */
     public function update(Request $request, string $id)
     {
@@ -58,7 +84,12 @@ class CategoryController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * destroy
+     *
+     * Deletes a specific category from the database.
+     *
+     * @param  string  $id The ID of the category to be deleted.
+     * @return \Illuminate\Http\JsonResponse Returns an empty JSON response.
      */
     public function destroy(string $id)
     {
