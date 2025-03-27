@@ -98,7 +98,8 @@ class BudgetController extends Controller
             if (Budget::where('user_id', Auth::id())
                 ->where('category_id', $request->category_id)
                 ->where('id', '!=', $id)
-                ->exists()) {
+                ->exists()
+            ) {
                 return response()->json([
                     'message' => 'Ya tienes un presupuesto para esta categoría'
                 ], Response::HTTP_BAD_REQUEST);
@@ -124,5 +125,46 @@ class BudgetController extends Controller
         $budget->delete();
 
         return response()->noContent();
+    }
+
+    public function reports()
+    {
+        $userId = Auth::id();
+
+        $budgets = Budget::where('user_id', $userId)->get();
+
+        $budget = Budget::where('user_id', Auth::id())->first();
+        if (!$budget) {
+            return response()->json(['message' => 'No hay presupuestos disponibles.'], Response::HTTP_OK);
+        }
+
+
+        if ($budgets->isEmpty()) {
+            return response()->json([
+                'message' => 'No hay presupuestos registrados para generar el reporte.'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        // Cálculo de estadísticas
+        $totalBudget = $budgets->sum('limit_amount');
+        $averageBudget = $budgets->avg('limit_amount');
+        $maxBudget = $budgets->max('limit_amount');
+        $minBudget = $budgets->min('limit_amount');
+
+        // Agrupación de presupuestos por categoría
+        $budgetsByCategory = $budgets->map(function ($budget) {
+            return [
+                'category_id' => $budget->category_id,
+                'limit_amount' => $budget->limit_amount,
+            ];
+        });
+
+        return response()->json([
+            'total_budget' => $totalBudget,
+            'average_budget' => $averageBudget,
+            'max_budget' => $maxBudget,
+            'min_budget' => $minBudget,
+            'budgets_by_category' => $budgetsByCategory,
+        ], Response::HTTP_OK);
     }
 }
