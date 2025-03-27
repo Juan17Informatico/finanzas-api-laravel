@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Budget;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
@@ -43,6 +44,13 @@ class BudgetController extends Controller
             'category_id' => 'required|exists:categories,id',
             'limit_amount' => 'required|numeric|min:0',
         ]);
+
+        // Validar que el usuario no tenga un presupuesto para la misma categoría
+        if (Budget::where('user_id', Auth::id())->where('category_id', $request->category_id)->exists()) {
+            return response()->json([
+                'message' => 'Ya existe un presupuesto para esta categoría'
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         $budget = Budget::create([
             'user_id' => Auth::id(),
@@ -84,6 +92,18 @@ class BudgetController extends Controller
             'category_id' => 'exists:categories,id',
             'limit_amount' => 'numeric|min:0',
         ]);
+
+        // Validar que la categoría no esté duplicada en otro presupuesto del usuario
+        if ($request->has('category_id')) {
+            if (Budget::where('user_id', Auth::id())
+                ->where('category_id', $request->category_id)
+                ->where('id', '!=', $id)
+                ->exists()) {
+                return response()->json([
+                    'message' => 'Ya tienes un presupuesto para esta categoría'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+        }
 
         $budget->update($request->only('category_id', 'limit_amount'));
 
