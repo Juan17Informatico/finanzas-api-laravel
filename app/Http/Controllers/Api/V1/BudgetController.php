@@ -133,12 +133,6 @@ class BudgetController extends Controller
 
         $budgets = Budget::where('user_id', $userId)->get();
 
-        $budget = Budget::where('user_id', Auth::id())->first();
-        if (!$budget) {
-            return response()->json(['message' => 'No hay presupuestos disponibles.'], Response::HTTP_OK);
-        }
-
-
         if ($budgets->isEmpty()) {
             return response()->json([
                 'message' => 'No hay presupuestos registrados para generar el reporte.'
