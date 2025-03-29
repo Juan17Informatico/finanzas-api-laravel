@@ -24,9 +24,36 @@ class TransactionController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the list of transactions.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Transaction::where('user_id', Auth::id())->get());
+        $query = Transaction::where('user_id', Auth::id());
+
+        // Filtrar por fecha (rango de fechas opcional)
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereBetween('date', [$request->start_date, $request->end_date]);
+        } elseif ($request->has('start_date')) {
+            $query->where('date', '>=', $request->start_date);
+        } elseif ($request->has('end_date')) {
+            $query->where('date', '<=', $request->end_date);
+        }
+
+        // Filtrar por categoría
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Filtrar por tipo de gasto (positivo = ingreso, negativo = gasto)
+        if ($request->has('type')) {
+            if ($request->type === 'income') {
+                $query->where('amount', '>', 0);
+            } elseif ($request->type === 'expense') {
+                $query->where('amount', '<', 0);
+            }
+        }
+
+        $transactions = $query->get();
+
+        return response()->json($transactions);
     }
 
     /**
