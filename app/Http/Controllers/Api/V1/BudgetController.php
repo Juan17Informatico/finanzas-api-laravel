@@ -21,13 +21,20 @@ class BudgetController extends Controller
     /**
      * index
      *
-     * Retrieves and returns a list of all budgets belonging to the authenticated user.
+     * Retrieves and returns a paginated list of all budgets belonging to the authenticated user.
      *
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the list of budgets.
+     * @param  \Illuminate\Http\Request  $request The request containing pagination parameters.
+     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the paginated list of budgets.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Budget::where('user_id', Auth::id())->get());
+        $perPage = $request->get('per_page', 15); // Default 15 items per page
+        $page = $request->get('page', 1); // Default page 1
+
+        $budgets = Budget::where('user_id', Auth::id())
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json($budgets);
     }
 
     /**
@@ -127,9 +134,19 @@ class BudgetController extends Controller
         return response()->noContent();
     }
 
-    public function reports()
+    /**
+     * reports
+     *
+     * Generates budget reports for the authenticated user.
+     *
+     * @param  \Illuminate\Http\Request  $request The request containing pagination parameters.
+     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing budget statistics and paginated data.
+     */
+    public function reports(Request $request)
     {
         $userId = Auth::id();
+        $perPage = $request->get('per_page', 10); // Default 10 items per page
+        $page = $request->get('page', 1); // Default page 1
 
         $budgets = Budget::where('user_id', $userId)->get();
 
@@ -145,13 +162,15 @@ class BudgetController extends Controller
         $maxBudget = $budgets->max('limit_amount');
         $minBudget = $budgets->min('limit_amount');
 
-        // Agrupación de presupuestos por categoría
-        $budgetsByCategory = $budgets->map(function ($budget) {
-            return [
-                'category_id' => $budget->category_id,
-                'limit_amount' => $budget->limit_amount,
-            ];
-        });
+        // Agrupación de presupuestos por categoría con paginación
+        $budgetsByCategory = Budget::where('user_id', $userId)
+            ->paginate($perPage, ['*'], 'page', $page)
+            ->through(function ($budget) {
+                return [
+                    'category_id' => $budget->category_id,
+                    'limit_amount' => $budget->limit_amount,
+                ];
+            });
 
         return response()->json([
             'total_budget' => $totalBudget,
