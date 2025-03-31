@@ -20,9 +20,11 @@ class TransactionController extends Controller
     /**
      * index
      *
-     * Retrieves and returns a list of all transactions belonging to the authenticated user.
+     * Retrieves and returns a paginated list of transactions belonging to the authenticated user.
+     * Supports filtering by date range, category, and transaction type.
      *
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the list of transactions.
+     * @param  \Illuminate\Http\Request  $request The request containing filter and pagination parameters.
+     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the paginated list of transactions.
      */
     public function index(Request $request)
     {
@@ -51,7 +53,16 @@ class TransactionController extends Controller
             }
         }
 
-        $transactions = $query->get();
+        // Aplicar ordenamiento
+        $sortField = $request->get('sort_by', 'date');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        $query->orderBy($sortField, $sortDirection);
+
+        // Implementar paginación
+        $perPage = $request->get('per_page', 15); // Default 15 items per page
+        $page = $request->get('page', 1); // Default page 1
+
+        $transactions = $query->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json($transactions);
     }
