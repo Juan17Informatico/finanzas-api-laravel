@@ -138,10 +138,10 @@ class AuthControllerTest extends TestCase
     public function test_logout_deletes_user_tokens()
     {
         $user = User::factory()->create();
-        
+
         // Autenticar al usuario usando Sanctum
         Sanctum::actingAs($user);
-        
+
         // Hacer la petición de logout estando autenticado
         $response = $this->postJson('/api/v1/logout');
 
@@ -160,7 +160,7 @@ class AuthControllerTest extends TestCase
     public function test_me_returns_authenticated_user_info()
     {
         $user = User::factory()->create();
-        
+
         // Autenticar al usuario usando Sanctum
         Sanctum::actingAs($user);
 
@@ -187,7 +187,7 @@ class AuthControllerTest extends TestCase
 
         $response->assertStatus(401);
     }
-    
+
     /**
      * Test para verificar que no se puede cerrar sesión sin estar autenticado.
      *
