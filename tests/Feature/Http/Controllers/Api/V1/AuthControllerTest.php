@@ -27,7 +27,7 @@ class AuthControllerTest extends TestCase
             'password_confirmation' => 'password123',
         ];
 
-        $response = $this->postJson('/api/v1/auth/register', $userData);
+        $response = $this->postJson('/api/v1/register', $userData);
 
         $response->assertStatus(201)
             ->assertJsonStructure(['token']);
@@ -55,7 +55,7 @@ class AuthControllerTest extends TestCase
             'password_confirmation' => 'password123',
         ];
 
-        $response = $this->postJson('/api/v1/auth/register', $userData);
+        $response = $this->postJson('/api/v1/register', $userData);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
@@ -75,7 +75,7 @@ class AuthControllerTest extends TestCase
             'password_confirmation' => 'differentpassword', // Contraseña diferente
         ];
 
-        $response = $this->postJson('/api/v1/auth/register', $userData);
+        $response = $this->postJson('/api/v1/register', $userData);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['password']);
@@ -99,7 +99,7 @@ class AuthControllerTest extends TestCase
             'password' => 'password123',
         ];
 
-        $response = $this->postJson('/api/v1/auth/login', $loginData);
+        $response = $this->postJson('/api/v1/login', $loginData);
 
         $response->assertStatus(200)
             ->assertJsonStructure(['token']);
@@ -124,7 +124,7 @@ class AuthControllerTest extends TestCase
             'password' => 'wrongpassword',
         ];
 
-        $response = $this->postJson('/api/v1/auth/login', $loginData);
+        $response = $this->postJson('/api/v1/login', $loginData);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
@@ -139,12 +139,11 @@ class AuthControllerTest extends TestCase
     {
         $user = User::factory()->create();
         
-        // Crear un token para el usuario
-        $token = $user->createToken('test-token')->plainTextToken;
+        // Autenticar al usuario usando Sanctum
+        Sanctum::actingAs($user);
         
-        // Hacer la petición de logout con el token
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->postJson('/api/v1/auth/logout');
+        // Hacer la petición de logout estando autenticado
+        $response = $this->postJson('/api/v1/logout');
 
         $response->assertStatus(200)
             ->assertJson(['message' => 'Sesión cerrada']);
@@ -166,7 +165,7 @@ class AuthControllerTest extends TestCase
         Sanctum::actingAs($user);
 
         // Hacer la petición para obtener la información del usuario
-        $response = $this->getJson('/api/v1/auth/me');
+        $response = $this->getJson('/api/v1/me');
 
         $response->assertStatus(200)
             ->assertJson([
@@ -184,7 +183,20 @@ class AuthControllerTest extends TestCase
     public function test_me_returns_401_for_unauthenticated_user()
     {
         // Hacer la petición sin autenticación
-        $response = $this->getJson('/api/v1/auth/me');
+        $response = $this->getJson('/api/v1/me');
+
+        $response->assertStatus(401);
+    }
+    
+    /**
+     * Test para verificar que no se puede cerrar sesión sin estar autenticado.
+     *
+     * @return void
+     */
+    public function test_logout_returns_401_for_unauthenticated_user()
+    {
+        // Hacer la petición sin autenticación
+        $response = $this->postJson('/api/v1/logout');
 
         $response->assertStatus(401);
     }
