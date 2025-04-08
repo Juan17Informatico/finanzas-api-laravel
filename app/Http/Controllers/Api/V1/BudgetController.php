@@ -8,8 +8,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Controlador responsable de gestionar los presupuestos del usuario autenticado.
+ * Incluye operaciones CRUD, generación de reportes y validaciones personalizadas.
+ */
 class BudgetController extends Controller
 {
+    /**
+     * Muestra una lista paginada de presupuestos del usuario autenticado.
+     *
+     * @param Request $request Parámetros de paginación (per_page, page).
+     * @return \Illuminate\Http\JsonResponse Lista paginada de presupuestos.
+     */
     public function index(Request $request)
     {
         $budgets = $this->getUserBudgetsQuery()
@@ -18,6 +28,12 @@ class BudgetController extends Controller
         return response()->json($budgets);
     }
 
+    /**
+     * Crea un nuevo presupuesto para el usuario autenticado.
+     *
+     * @param Request $request Datos validados: category_id, limit_amount.
+     * @return \Illuminate\Http\JsonResponse Presupuesto creado o error si ya existe para la categoría.
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -37,12 +53,25 @@ class BudgetController extends Controller
         return response()->json($budget, Response::HTTP_CREATED);
     }
 
+    /**
+     * Muestra un presupuesto específico del usuario autenticado.
+     *
+     * @param string $id ID del presupuesto.
+     * @return \Illuminate\Http\JsonResponse Presupuesto encontrado.
+     */
     public function show(string $id)
     {
         $budget = $this->getUserBudgetsQuery()->findOrFail($id);
         return response()->json($budget);
     }
 
+    /**
+     * Actualiza un presupuesto del usuario autenticado.
+     *
+     * @param Request $request Datos validados: category_id, limit_amount.
+     * @param string $id ID del presupuesto a actualizar.
+     * @return \Illuminate\Http\JsonResponse Presupuesto actualizado o error si ya existe esa categoría.
+     */
     public function update(Request $request, string $id)
     {
         $budget = $this->getUserBudgetsQuery()->findOrFail($id);
@@ -61,6 +90,12 @@ class BudgetController extends Controller
         return response()->json($budget);
     }
 
+    /**
+     * Elimina un presupuesto del usuario autenticado.
+     *
+     * @param string $id ID del presupuesto a eliminar.
+     * @return \Illuminate\Http\Response Respuesta vacía con código 204.
+     */
     public function destroy(string $id)
     {
         $budget = $this->getUserBudgetsQuery()->findOrFail($id);
@@ -69,6 +104,12 @@ class BudgetController extends Controller
         return response()->noContent();
     }
 
+    /**
+     * Genera estadísticas y retorna una lista paginada de los presupuestos del usuario.
+     *
+     * @param Request $request Parámetros de paginación (per_page, page).
+     * @return \Illuminate\Http\JsonResponse Estadísticas y presupuestos.
+     */
     public function reports(Request $request)
     {
         $budgets = $this->getUserBudgetsQuery()->get();
@@ -102,11 +143,23 @@ class BudgetController extends Controller
 
     /** ========== MÉTODOS PRIVADOS ========== */
 
-    private function getUserBudgetsQuery()
+    /**
+     * Obtiene la consulta base de los presupuestos del usuario autenticado.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder Consulta filtrada por el usuario.
+     */
+    private function getUserBudgetsQuery(): Budget
     {
         return Budget::where('user_id', Auth::id());
     }
 
+    /**
+     * Verifica si ya existe un presupuesto para una categoría específica.
+     *
+     * @param int $categoryId ID de la categoría.
+     * @param string|null $excludeId ID de presupuesto a excluir (en caso de actualización).
+     * @return bool True si ya existe, false si no.
+     */
     private function budgetExistsForCategory(int $categoryId, ?string $excludeId = null): bool
     {
         $query = $this->getUserBudgetsQuery()->where('category_id', $categoryId);
@@ -118,6 +171,11 @@ class BudgetController extends Controller
         return $query->exists();
     }
 
+    /**
+     * Retorna una respuesta de error cuando ya existe un presupuesto para la categoría.
+     *
+     * @return \Illuminate\Http\JsonResponse Mensaje de error 400.
+     */
     private function categoryAlreadyExistsResponse()
     {
         return response()->json([
