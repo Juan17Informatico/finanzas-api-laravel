@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Budget;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
@@ -82,7 +83,9 @@ class BudgetController extends Controller
         ]);
 
         if (isset($validated['category_id']) && $this->budgetExistsForCategory($validated['category_id'], $id)) {
-            return $this->categoryAlreadyExistsResponse();
+            return response()->json([
+                'message' => 'Ya tienes un presupuesto para esta categoría'
+            ], Response::HTTP_BAD_REQUEST);
         }
 
         $budget->update($validated);
@@ -112,7 +115,7 @@ class BudgetController extends Controller
      */
     public function reports(Request $request)
     {
-        $budgets = $this->getUserBudgetsQuery()->get();
+        $budgets = $this->getUserBudgetsQuery()->with('category')->get();
 
         if ($budgets->isEmpty()) {
             return response()->json([
@@ -125,18 +128,25 @@ class BudgetController extends Controller
         $highestBudget = $budgets->max('limit_amount');
         $lowestBudget = $budgets->min('limit_amount');
 
+        // Agrupar presupuestos por categoría
+        $budgetsByCategory = $budgets->groupBy('category.name')->map(function ($items) {
+            return [
+                'count' => $items->count(),
+                'total' => $items->sum('limit_amount')
+            ];
+        });
+
         $paginated = $budgets->forPage(
             $request->get('page', 1),
             $request->get('per_page', 10)
         )->values();
 
         return response()->json([
-            'statistics' => [
-                'total' => $totalBudget,
-                'average' => $averageBudget,
-                'highest' => $highestBudget,
-                'lowest' => $lowestBudget,
-            ],
+            'total_budget' => $totalBudget,
+            'average_budget' => $averageBudget,
+            'max_budget' => $highestBudget,
+            'min_budget' => $lowestBudget,
+            'budgets_by_category' => $budgetsByCategory,
             'data' => $paginated,
         ]);
     }
@@ -148,7 +158,7 @@ class BudgetController extends Controller
      *
      * @return \Illuminate\Database\Eloquent\Builder Consulta filtrada por el usuario.
      */
-    private function getUserBudgetsQuery(): Budget
+    private function getUserBudgetsQuery(): Builder
     {
         return Budget::where('user_id', Auth::id());
     }
