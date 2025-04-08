@@ -9,138 +9,121 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * TransactionController
+ * Class TransactionController
  *
- * This controller handles API requests related to user transactions.
- * It provides methods for creating, reading, updating, and deleting transaction records,
- * ensuring all operations are scoped to the authenticated user.
+ * Controlador para gestionar las transacciones del usuario.
+ * Proporciona métodos para crear, leer, actualizar, eliminar y listar transacciones.
  */
 class TransactionController extends Controller
 {
     /**
-     * index
+     * Muestra una lista de las transacciones del usuario autenticado.
+     * Se pueden aplicar filtros como fecha, categoría, tipo de transacción (ingreso/gasto).
      *
-     * Retrieves and returns a paginated list of transactions belonging to the authenticated user.
-     * Supports filtering by date range, category, and transaction type.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing filter and pagination parameters.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the paginated list of transactions.
+     * @param  Request  $request  Filtros y parámetros de paginación
+     * @return \Illuminate\Http\JsonResponse  Respuesta JSON con las transacciones paginadas
      */
     public function index(Request $request)
     {
         $query = Transaction::where('user_id', Auth::id());
 
-        // Filtrar por fecha (rango de fechas opcional)
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('date', [$request->start_date, $request->end_date]);
-        } elseif ($request->has('start_date')) {
-            $query->where('date', '>=', $request->start_date);
-        } elseif ($request->has('end_date')) {
-            $query->where('date', '<=', $request->end_date);
-        }
+        // Filtrado por rango de fechas
+        $query->when($request->filled('start_date') && $request->filled('end_date'), fn($q) =>
+            $q->whereBetween('date', [$request->start_date, $request->end_date])
+        )->when($request->filled('start_date') && !$request->filled('end_date'), fn($q) =>
+            $q->where('date', '>=', $request->start_date)
+        )->when(!$request->filled('start_date') && $request->filled('end_date'), fn($q) =>
+            $q->where('date', '<=', $request->end_date)
+        );
 
-        // Filtrar por categoría
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
+        // Filtrado por categoría
+        $query->when($request->filled('category_id'), fn($q) =>
+            $q->where('category_id', $request->category_id)
+        );
 
-        // Filtrar por tipo de gasto (positivo = ingreso, negativo = gasto)
-        if ($request->has('type')) {
-            if ($request->type === 'income') {
-                $query->where('amount', '>', 0);
-            } elseif ($request->type === 'expense') {
-                $query->where('amount', '<', 0);
-            }
-        }
+        // Filtrado por tipo de transacción (ingreso o gasto)
+        $query->when($request->filled('type'), function ($q) use ($request) {
+            match ($request->type) {
+                'income' => $q->where('amount', '>', 0),
+                'expense' => $q->where('amount', '<', 0),
+                default => null,
+            };
+        });
 
-        // Aplicar ordenamiento
-        $sortField = $request->get('sort_by', 'date');
-        $sortDirection = $request->get('sort_direction', 'desc');
-        $query->orderBy($sortField, $sortDirection);
-
-        // Implementar paginación
-        $perPage = $request->get('per_page', 15); // Default 15 items per page
-        $page = $request->get('page', 1); // Default page 1
-
-        $transactions = $query->paginate($perPage, ['*'], 'page', $page);
+        // Ordenamiento y paginación
+        $transactions = $query
+            ->orderBy($request->get('sort_by', 'date'), $request->get('sort_direction', 'desc'))
+            ->paginate($request->get('per_page', 15), ['*'], 'page', $request->get('page', 1));
 
         return response()->json($transactions);
     }
 
     /**
-     * store
+     * Crea una nueva transacción para el usuario autenticado.
      *
-     * Validates and stores a new transaction in the database for the authenticated user.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing the transaction data.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the created transaction.
+     * @param  Request  $request  Datos de la transacción a crear
+     * @return \Illuminate\Http\JsonResponse  Respuesta JSON con la transacción creada
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'amount' => 'required|numeric',
             'description' => 'nullable|string',
             'date' => 'required|date',
         ]);
 
+        // Crear la transacción
         $transaction = Transaction::create([
+            ...$validated,
             'user_id' => Auth::id(),
-            'category_id' => $request->category_id,
-            'amount' => $request->amount,
-            'description' => $request->description,
-            'date' => $request->date,
         ]);
 
         return response()->json($transaction, Response::HTTP_CREATED);
     }
 
     /**
-     * show
+     * Muestra los detalles de una transacción específica.
      *
-     * Retrieves and returns the details of a specific transaction belonging to the authenticated user.
-     *
-     * @param  string  $id The ID of the transaction to be shown.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the transaction details.
+     * @param  string  $id  ID de la transacción
+     * @return \Illuminate\Http\JsonResponse  Respuesta JSON con la transacción encontrada
      */
     public function show(string $id)
     {
         $transaction = Transaction::where('user_id', Auth::id())->findOrFail($id);
+
         return response()->json($transaction);
     }
 
     /**
-     * update
+     * Actualiza una transacción existente del usuario autenticado.
      *
-     * Validates and updates an existing transaction belonging to the authenticated user.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing the updated transaction data.
-     * @param  string  $id The ID of the transaction to be updated.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the updated transaction.
+     * @param  Request  $request  Datos de la transacción a actualizar
+     * @param  string   $id       ID de la transacción a actualizar
+     * @return \Illuminate\Http\JsonResponse  Respuesta JSON con la transacción actualizada
      */
     public function update(Request $request, string $id)
     {
         $transaction = Transaction::where('user_id', Auth::id())->findOrFail($id);
 
-        $request->validate([
-            'category_id' => 'exists:categories,id',
-            'amount' => 'numeric',
-            'description' => 'string',
-            'date' => 'date',
+        $validated = $request->validate([
+            'category_id' => 'sometimes|exists:categories,id',
+            'amount' => 'sometimes|numeric',
+            'description' => 'sometimes|string',
+            'date' => 'sometimes|date',
         ]);
 
-        $transaction->update($request->only('category_id', 'amount', 'description', 'date'));
+        // Actualizar la transacción
+        $transaction->update($validated);
 
         return response()->json($transaction);
     }
 
     /**
-     * destroy
+     * Elimina una transacción del usuario autenticado.
      *
-     * Deletes a specific transaction belonging to the authenticated user.
-     *
-     * @param  string  $id The ID of the transaction to be deleted.
-     * @return \Illuminate\Http\Response Returns an empty response with a 204 No Content status code.
+     * @param  string  $id  ID de la transacción a eliminar
+     * @return \Illuminate\Http\Response  Respuesta con un estado vacío (204 No Content)
      */
     public function destroy(string $id)
     {

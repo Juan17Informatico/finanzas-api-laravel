@@ -8,19 +8,17 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * CategoryController
+ * Class CategoryController
  *
- * This controller handles API requests related to categories.
- * It provides methods for creating, reading, updating, and deleting category records.
+ * Controlador para gestionar las categorías de ingreso o gasto del usuario.
+ * Proporciona métodos CRUD para operar sobre el modelo Category.
  */
 class CategoryController extends Controller
 {
     /**
-     * index
+     * Muestra todas las categorías existentes.
      *
-     * Retrieves and returns a list of all categories.
-     *
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the list of categories.
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index()
     {
@@ -28,74 +26,86 @@ class CategoryController extends Controller
     }
 
     /**
-     * store
+     * Crea una nueva categoría en la base de datos.
      *
-     * Validates and stores a new category in the database.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing the category data.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the created category.
+     * @param  Request  $request  Datos validados: nombre único y tipo (income o expense)
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|unique:categories,name',
-            'type' => 'required|in:income,expense',
-        ]);
+        $validated = $this->validateCategory($request);
 
-        $category = Category::create($request->all());
+        $category = Category::create($validated);
 
         return response()->json($category, Response::HTTP_CREATED);
     }
 
     /**
-     * show
+     * Muestra los detalles de una categoría específica.
      *
-     * Retrieves and returns the details of a specific category.
-     *
-     * @param  string  $id The ID of the category to be shown.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the category details.
+     * @param  string  $id  ID de la categoría
+     * @return \Illuminate\Http\JsonResponse
      */
     public function show(string $id)
     {
-        return response()->json(Category::findOrFail($id));
+        return response()->json($this->findCategory($id));
     }
 
     /**
-     * update
+     * Actualiza los datos de una categoría existente.
      *
-     * Validates and updates an existing category in the database.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing the updated category data.
-     * @param  string  $id The ID of the category to be updated.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the updated category.
+     * @param  Request  $request  Datos opcionales validados: nombre único y tipo
+     * @param  string   $id       ID de la categoría a actualizar
+     * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, string $id)
     {
-        $category = Category::findOrFail($id);
+        $category = $this->findCategory($id);
 
-        $request->validate([
-            'name' => 'string|unique:categories,name,' . $id,
-            'type' => 'in:income,expense',
-        ]);
+        $validated = $this->validateCategory($request, $id);
 
-        $category->update($request->only('name', 'type'));
+        $category->update($validated);
 
         return response()->json($category);
     }
 
     /**
-     * destroy
+     * Elimina una categoría de la base de datos.
      *
-     * Deletes a specific category from the database.
-     *
-     * @param  string  $id The ID of the category to be deleted.
-     * @return \Illuminate\Http\JsonResponse Returns an empty JSON response.
+     * @param  string  $id  ID de la categoría
+     * @return \Illuminate\Http\JsonResponse
      */
     public function destroy(string $id)
     {
-        $category = Category::findOrFail($id);
+        $category = $this->findCategory($id);
         $category->delete();
 
-        return response()->json();
+        return response()->json(null, Response::HTTP_OK);
+    }
+
+    /**
+     * Valida los datos del request para crear o actualizar una categoría.
+     *
+     * @param  Request     $request   Objeto con los datos enviados por el cliente
+     * @param  string|null $id        ID de la categoría si es una actualización
+     * @return array                   Datos validados
+     */
+    private function validateCategory(Request $request, ?string $id = null): array
+    {
+        return $request->validate([
+            'name' => ['string', 'required', 'unique:categories,name' . ($id ? ",$id" : '')],
+            'type' => ['required', 'in:income,expense'],
+        ]);
+    }
+
+    /**
+     * Busca una categoría por ID o lanza una excepción 404 si no existe.
+     *
+     * @param  string  $id  ID de la categoría
+     * @return Category     Modelo de la categoría encontrada
+     */
+    private function findCategory(string $id): Category
+    {
+        return Category::findOrFail($id);
     }
 }
