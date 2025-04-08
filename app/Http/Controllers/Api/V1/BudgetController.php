@@ -4,151 +4,74 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Budget;
-use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * BudgetController
- *
- * This controller handles API requests related to user budgets.
- * It provides methods for creating, reading, updating, and deleting budget records,
- * ensuring all operations are scoped to the authenticated user.
- */
 class BudgetController extends Controller
 {
-    /**
-     * index
-     *
-     * Retrieves and returns a paginated list of all budgets belonging to the authenticated user.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing pagination parameters.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the paginated list of budgets.
-     */
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 15); // Default 15 items per page
-        $page = $request->get('page', 1); // Default page 1
-
-        $budgets = Budget::where('user_id', Auth::id())
-            ->paginate($perPage, ['*'], 'page', $page);
+        $budgets = $this->getUserBudgetsQuery()
+            ->paginate($request->get('per_page', 15), ['*'], 'page', $request->get('page', 1));
 
         return response()->json($budgets);
     }
 
-    /**
-     * store
-     *
-     * Validates and stores a new budget in the database for the authenticated user.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing the budget data.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the created budget.
-     */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'limit_amount' => 'required|numeric|min:0',
         ]);
 
-        // Validar que el usuario no tenga un presupuesto para la misma categoría
-        if (Budget::where('user_id', Auth::id())->where('category_id', $request->category_id)->exists()) {
-            return response()->json([
-                'message' => 'Ya existe un presupuesto para esta categoría'
-            ], Response::HTTP_BAD_REQUEST);
+        if ($this->budgetExistsForCategory($validated['category_id'])) {
+            return $this->categoryAlreadyExistsResponse();
         }
 
         $budget = Budget::create([
             'user_id' => Auth::id(),
-            'category_id' => $request->category_id,
-            'limit_amount' => $request->limit_amount,
+            ...$validated,
         ]);
 
         return response()->json($budget, Response::HTTP_CREATED);
     }
 
-    /**
-     * show
-     *
-     * Retrieves and returns the details of a specific budget belonging to the authenticated user.
-     *
-     * @param  string  $id The ID of the budget to be shown.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the budget details.
-     */
     public function show(string $id)
     {
-        $budget = Budget::where('user_id', Auth::id())->findOrFail($id);
+        $budget = $this->getUserBudgetsQuery()->findOrFail($id);
         return response()->json($budget);
     }
 
-    /**
-     * update
-     *
-     * Validates and updates an existing budget belonging to the authenticated user.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing the updated budget data.
-     * @param  string  $id The ID of the budget to be updated.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing the updated budget.
-     */
     public function update(Request $request, string $id)
     {
-        $budget = Budget::where('user_id', Auth::id())->findOrFail($id);
+        $budget = $this->getUserBudgetsQuery()->findOrFail($id);
 
-        $request->validate([
-            'category_id' => 'exists:categories,id',
-            'limit_amount' => 'numeric|min:0',
+        $validated = $request->validate([
+            'category_id' => 'sometimes|exists:categories,id',
+            'limit_amount' => 'sometimes|numeric|min:0',
         ]);
 
-        // Validar que la categoría no esté duplicada en otro presupuesto del usuario
-        if ($request->has('category_id')) {
-            if (Budget::where('user_id', Auth::id())
-                ->where('category_id', $request->category_id)
-                ->where('id', '!=', $id)
-                ->exists()
-            ) {
-                return response()->json([
-                    'message' => 'Ya tienes un presupuesto para esta categoría'
-                ], Response::HTTP_BAD_REQUEST);
-            }
+        if (isset($validated['category_id']) && $this->budgetExistsForCategory($validated['category_id'], $id)) {
+            return $this->categoryAlreadyExistsResponse();
         }
 
-        $budget->update($request->only('category_id', 'limit_amount'));
+        $budget->update($validated);
 
         return response()->json($budget);
     }
 
-    /**
-     * destroy
-     *
-     * Deletes a specific budget belonging to the authenticated user.
-     *
-     * @param  string  $id The ID of the budget to be deleted.
-     * @return \Illuminate\Http\Response Returns an empty response with a 204 No Content status code.
-     */
     public function destroy(string $id)
     {
-        $budget = Budget::where('user_id', Auth::id())->findOrFail($id);
+        $budget = $this->getUserBudgetsQuery()->findOrFail($id);
         $budget->delete();
 
         return response()->noContent();
     }
 
-    /**
-     * reports
-     *
-     * Generates budget reports for the authenticated user.
-     *
-     * @param  \Illuminate\Http\Request  $request The request containing pagination parameters.
-     * @return \Illuminate\Http\JsonResponse Returns a JSON response containing budget statistics and paginated data.
-     */
     public function reports(Request $request)
     {
-        $userId = Auth::id();
-        $perPage = $request->get('per_page', 10); // Default 10 items per page
-        $page = $request->get('page', 1); // Default page 1
-
-        $budgets = Budget::where('user_id', $userId)->get();
+        $budgets = $this->getUserBudgetsQuery()->get();
 
         if ($budgets->isEmpty()) {
             return response()->json([
@@ -156,28 +79,49 @@ class BudgetController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
 
-        // Cálculo de estadísticas
         $totalBudget = $budgets->sum('limit_amount');
         $averageBudget = $budgets->avg('limit_amount');
-        $maxBudget = $budgets->max('limit_amount');
-        $minBudget = $budgets->min('limit_amount');
+        $highestBudget = $budgets->max('limit_amount');
+        $lowestBudget = $budgets->min('limit_amount');
 
-        // Agrupación de presupuestos por categoría con paginación
-        $budgetsByCategory = Budget::where('user_id', $userId)
-            ->paginate($perPage, ['*'], 'page', $page)
-            ->through(function ($budget) {
-                return [
-                    'category_id' => $budget->category_id,
-                    'limit_amount' => $budget->limit_amount,
-                ];
-            });
+        $paginated = $budgets->forPage(
+            $request->get('page', 1),
+            $request->get('per_page', 10)
+        )->values();
 
         return response()->json([
-            'total_budget' => $totalBudget,
-            'average_budget' => $averageBudget,
-            'max_budget' => $maxBudget,
-            'min_budget' => $minBudget,
-            'budgets_by_category' => $budgetsByCategory,
-        ], Response::HTTP_OK);
+            'statistics' => [
+                'total' => $totalBudget,
+                'average' => $averageBudget,
+                'highest' => $highestBudget,
+                'lowest' => $lowestBudget,
+            ],
+            'data' => $paginated,
+        ]);
+    }
+
+    /** ========== MÉTODOS PRIVADOS ========== */
+
+    private function getUserBudgetsQuery()
+    {
+        return Budget::where('user_id', Auth::id());
+    }
+
+    private function budgetExistsForCategory(int $categoryId, ?string $excludeId = null): bool
+    {
+        $query = $this->getUserBudgetsQuery()->where('category_id', $categoryId);
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
+    }
+
+    private function categoryAlreadyExistsResponse()
+    {
+        return response()->json([
+            'message' => 'Ya existe un presupuesto para esta categoría'
+        ], Response::HTTP_BAD_REQUEST);
     }
 }
