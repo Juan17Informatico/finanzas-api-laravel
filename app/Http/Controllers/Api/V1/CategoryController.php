@@ -7,13 +7,30 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Class CategoryController
+ *
+ * Controlador para gestionar las categorías de ingreso o gasto del usuario.
+ * Proporciona métodos CRUD para operar sobre el modelo Category.
+ */
 class CategoryController extends Controller
 {
+    /**
+     * Muestra todas las categorías existentes.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index()
     {
         return response()->json(Category::all());
     }
 
+    /**
+     * Crea una nueva categoría en la base de datos.
+     *
+     * @param  Request  $request  Datos validados: nombre único y tipo (income o expense)
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $validated = $this->validateCategory($request);
@@ -23,11 +40,24 @@ class CategoryController extends Controller
         return response()->json($category, Response::HTTP_CREATED);
     }
 
+    /**
+     * Muestra los detalles de una categoría específica.
+     *
+     * @param  string  $id  ID de la categoría
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show(string $id)
     {
         return response()->json($this->findCategory($id));
     }
 
+    /**
+     * Actualiza los datos de una categoría existente.
+     *
+     * @param  Request  $request  Datos opcionales validados: nombre único y tipo
+     * @param  string   $id       ID de la categoría a actualizar
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, string $id)
     {
         $category = $this->findCategory($id);
@@ -39,6 +69,12 @@ class CategoryController extends Controller
         return response()->json($category);
     }
 
+    /**
+     * Elimina una categoría de la base de datos.
+     *
+     * @param  string  $id  ID de la categoría
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy(string $id)
     {
         $category = $this->findCategory($id);
@@ -48,9 +84,11 @@ class CategoryController extends Controller
     }
 
     /**
-     * validateCategory
+     * Valida los datos del request para crear o actualizar una categoría.
      *
-     * Centraliza la validación de las categorías.
+     * @param  Request     $request   Objeto con los datos enviados por el cliente
+     * @param  string|null $id        ID de la categoría si es una actualización
+     * @return array                   Datos validados
      */
     private function validateCategory(Request $request, ?string $id = null): array
     {
@@ -61,9 +99,10 @@ class CategoryController extends Controller
     }
 
     /**
-     * findCategory
+     * Busca una categoría por ID o lanza una excepción 404 si no existe.
      *
-     * Busca una categoría o lanza una excepción 404.
+     * @param  string  $id  ID de la categoría
+     * @return Category     Modelo de la categoría encontrada
      */
     private function findCategory(string $id): Category
     {
