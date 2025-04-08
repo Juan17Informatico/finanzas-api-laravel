@@ -80,7 +80,7 @@ class CategoryController extends Controller
         $category = $this->findCategory($id);
         $category->delete();
 
-        return response()->json(null, Response::HTTP_NO_CONTENT);
+        return response()->json(null, Response::HTTP_OK);
     }
 
     /**
