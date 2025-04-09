@@ -29,42 +29,42 @@ Esta es una API RESTful desarrollada con Laravel 11 y PHP 8.3 que permite a los 
 
 1. Clona el repositorio:
 
-```bash
-git clone https://github.com/Juan17Informatico/api-finanzas-personales.git
-cd api-finanzas-personales
-```
+   ```bash
+   git clone https://github.com/Juan17Informatico/api-finanzas-personales.git
+   cd api-finanzas-personales
+   ```
 
 2. Instala dependencias:
 
-```bash
-composer install
-```
+   ```bash
+   composer install
+   ```
 
 3. Copia el archivo de entorno y configura:
 
-```bash
-cp .env.example .env
-php artisan key:generate
-```
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
 4. Configura la base de datos en `.env`.
 5. Ejecuta las migraciones:
 
-```bash
-php artisan migrate
-```
+   ```bash
+   php artisan migrate
+   ```
 
 6. (Opcional) Ejecuta los tests:
 
-```bash
-php artisan test
-```
+   ```bash
+   php artisan test
+   ```
 
 ## 🔐 Autenticación
 
 Usa **Laravel Sanctum** con tokens API. Luego de registrarte o iniciar sesión, obtendrás un token que debes enviar en el encabezado:
 
-```
+```textplain
 Authorization: Bearer TU_TOKEN
 ```
 
@@ -94,22 +94,23 @@ Puedes aplicar los siguientes parámetros a `/api/v1/transactions`:
 
 ## 🧩 Relaciones entre modelos
 
-* **User**
-   * Tiene muchos `transactions`
-   * Tiene muchos `budgets`
-* **Category**
-   * Tiene muchas `transactions`
-   * Tiene muchos `budgets`
-* **Transaction**
-   * Pertenece a un `user`
-   * Pertenece a una `category`
-* **Budget**
-   * Pertenece a un `user`
-   * Pertenece a una `category`
+- **User**
+  - Tiene muchos `transactions`
+  - Tiene muchos `budgets`
+- **Category**
+  - Tiene muchas `transactions`
+  - Tiene muchos `budgets`
+- **Transaction**
+  - Pertenece a un `user`
+  - Pertenece a una `category`
+- **Budget**
+  - Pertenece a un `user`
+  - Pertenece a una `category`
 
 ## ✅ Campos obligatorios
 
-**Category**
+### Category
+
 ```json
 {
   "name": "Salario",
@@ -117,7 +118,8 @@ Puedes aplicar los siguientes parámetros a `/api/v1/transactions`:
 }
 ```
 
-**Transaction**
+### Transaction
+
 ```json
 {
   "category_id": 1,
@@ -127,7 +129,8 @@ Puedes aplicar los siguientes parámetros a `/api/v1/transactions`:
 }
 ```
 
-**Budget**
+### Budget
+
 ```json
 {
   "category_id": 2,
